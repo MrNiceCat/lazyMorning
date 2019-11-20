@@ -1,4 +1,3 @@
-###############
-Lazyscript
-Applscript for morning-routine
-###############
+##############################
+Lazyscript for morning routine
+##############################

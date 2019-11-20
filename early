@@ -1,0 +1,77 @@
+#!/bin/bash
+# todo: launchjob on startup once
+# opening some chrome tabs
+# notify me when i gotta go to the post-office
+
+FAKEUSER="${1:-fake-chrome-user}"
+CHROMEROOT=$HOME/.chromeroot/
+
+mkdir -p ${CHROMEROOT}
+
+export PROFILE="${CHROMEROOT}/${FAKEUSER}-chromium-profile"
+export DISK_CACHEDIR="${CHROMEROOT}/${FAKEUSER}-chromium-profile-cache"
+export DISK_CACHESIZE=4096
+export MEDIA_CACHESIZE=4096
+
+PARANOID_OPTIONS="\
+        --no-displaying-insecure-content \
+        --no-referrers \
+        --disable-zero-suggest \
+        --disable-sync  \
+        --cipher-suite-blacklist=0x0004,0x0005,0xc011,0xc007 \
+        --enable-sandbox-logging >/dev/null 2>&1
+        "
+
+
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
+        --remember-cert-error-decisions \
+        --window-position=2400,400 \
+        --window-size=500,500 \
+        --user-data-dir=${PROFILE} \
+        --disk-cache-dir=${DISK_CACHEDIR} \
+        --disk-cache-size=${DISK_CACHESIZE} \
+        --media-cache-size=${MEDIA_CACHESIZE} \
+        2>&1
+
+open -a "Google Chrome" https://stackoverflow.com/
+
+# reminds you to go to the post office at 9:30, open before 8:30
+# weekday: 1(Monday) 5(Friday)...
+weekday=2
+reminder="Post"
+
+_startReminder () {
+        local reminder="$*"
+        if [[ -n $(ps ax | grep LaunchBar.app) && $DF_LAUNCHBAR == true ]]; then
+                osascript -e "tell application \"LaunchBar\" to display in large type \"Time to $reminder\" with sound \"Glass\""
+        fi
+        /usr/bin/afplay /System/Library/Sounds/Glass.aiff
+        osascript -e 'display notification "'"$reminder"'"'
+}
+
+# $hours -lt '09' && $minutes -lt '30'
+if [[ $(date +%u) == $weekday ]] ; then
+        hours=$(date +%H)
+        minutes=`date +"%M"`
+        seconds=`date +"%S"`
+
+        if [[ ${minutes} > 30 ]] ; then
+                minutes=`expr ${minutes} - 60`
+                hours=`expr ${hours} + 1`
+        fi
+
+        sleepHours=`expr 9 - ${hours}`
+        sleepHoursInSec=`expr ${sleepHours} \* 60 \* 60`
+        sleepMinutes=`expr 29 - ${minutes}`
+        sleepMinutesInSec=`expr ${sleepMinutes} \* 60`
+        sleepSeconds=`expr 59 - ${seconds}`
+
+        # time till 9:30
+        # todo: check if something is negative...
+        echo "reminding you in ${sleepHours} hours, ${sleepMinutes} minutes and ${sleepSeconds} seconds"
+        sleep ${sleepHoursInSec}
+        sleep ${sleepMinutesInSec}
+        sleep ${sleepSeconds} 
+        _startReminder "$reminder"
+        exit
+fi
